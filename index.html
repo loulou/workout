@@ -578,11 +578,13 @@ function saveDraft(){
   toast('Brouillon sauvegardé');
 }
 
+const SYNC_URL='https://script.google.com/macros/s/AKfycbwZcAy3QU_02S6tw3Tfm9r3Nam-wXQf7lddFEspK6pBt0VRGbiNgaXWzvjZnVO4lahy/exec';
+
 function mainAction(){
   const d=DB[cur];
   if(!d.exos.length){toast('Aucun exercice dans cette séance');return;}
   if(!d.exos.every(e=>locked[cur+'_'+e.id])){
-    toast('Valide tous les exercices d\'abord');
+    toast("Valide tous les exercices d'abord");
     return;
   }
   if(!synced){
@@ -592,9 +594,36 @@ function mainAction(){
     document.getElementById('h-pill').textContent=d.code+' · TERMINÉE';
     document.getElementById('h-pill').classList.add('done');
     toast('Séance terminée ! Appuie sur Synchroniser.');
-  } else {
-    toast('Sync Google Drive — API à connecter prochainement');
+    return;
   }
+  const btn=document.getElementById('btn-main');
+  btn.textContent='ENVOI...';
+  btn.disabled=true;
+  const today=new Date().toLocaleDateString('fr-FR');
+  const payload={
+    date:today, session:d.name, code:d.code,
+    exercices:d.exos.map(ex=>({
+      titre:ex.title,
+      commentaire:comments[cur+'_'+ex.id]||'',
+      series:ex.series.map((s,si)=>({
+        label:s.l, charge:s.kg, reps:s.reps,
+        rpe_cible:s.rpe, rpe_reel:rpe[k(ex.id,si)+'_rpe']||''
+      }))
+    }))
+  };
+  fetch(SYNC_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+  .then(()=>{
+    btn.textContent='✓ SYNCHRONISÉ';
+    btn.style.background='var(--g)';
+    btn.style.color='#fff';
+    toast('Données envoyées dans Google Sheet !');
+    saveState();
+  })
+  .catch(()=>{
+    btn.textContent='↑ RÉESSAYER';
+    btn.disabled=false;
+    toast('Erreur réseau — réessaie');
+  });
 }
 
 // ─── TOAST ───────────────────────────────────────────────────────────────────
